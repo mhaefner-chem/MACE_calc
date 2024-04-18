@@ -18,7 +18,7 @@ def get_symmetry(structure,verbosity = 0, prec=0.01):
     return structure_sym
    
 # function for single point calculation
-def perform_singlepoint(compound):
+def perform_singlepoint(compound,settings):
     E_0 = compound.structure.get_potential_energy()
     n_atoms = len(compound.structure.symbols)
     
@@ -31,7 +31,7 @@ def perform_singlepoint(compound):
 from ase.constraints import UnitCellFilter
 from ase.optimize import BFGSLineSearch as BFGS_LS
 
-def perform_optimization(compound):
+def perform_optimization(compound,settings):
     
     # relaxation
     E_0 = compound.structure.get_potential_energy()
@@ -45,25 +45,99 @@ def perform_optimization(compound):
     relax.run(fmax=settings.fmax,steps=settings.max_steps)
     
     E_fin = struc_sym.get_potential_energy()
+    compound.e_opt = E_fin
     print("Final Energy: {:9.3f} eV, {:6.3f} eV/atom".format(E_fin,E_fin/n_atoms))
     
     write_results(file_results, "{:16} {:8.3f} {:5}\n".format(compound.name,E_0,compound.multiplicity), "a")
+    # compound.structure = struc_sym
 
-    # struc_sym.write(name+"_MACEOPT.xyz",format="extxyz")
+    struc_sym.write(compound.name+"_OPT.xyz",format="extxyz")
+    
 
+# function for single point calculation
+from ase.phonons import Phonons
+from ase.thermochemistry import CrystalThermo
+from ase.io import read as ase_read
+import numpy as np
+def perform_phonon(compound,settings):
+    temperatures = settings.temperatures
+    opt_struc = ase_read(compound.name+"_OPT.xyz",format="extxyz")
+    phonon_start = time.time()
+    if settings.fmax > 0.005:
+        print("Fmax for the optimization is larger than 0.005 eV/Å. Consider a tighter convergence for phonon calculations.")
+    
+    N = [1,1,1]
+    min_len = settings.min_len 
+
+    for i in range(len(opt_struc.cell.lengths())):
+        while N[i]*opt_struc.cell.lengths()[i] < min_len:
+            N[i] += 1
         
+
+    print(len(opt_struc.symbols))
+    print(opt_struc.cell.lengths())
+    displacements = len(opt_struc.symbols)*6*N[0]*N[1]*N[2]
+    print(N,displacements)
+
+    # Phonon analysis
+    ph = Phonons(opt_struc, settings.calculator, supercell=(N[0], N[1], N[2]), delta=0.05)
+    ph.run()
+    print("Phonon calculation done.")
+
+    displacement_end = time.time()
+    
+    ph.read(acoustic=True)
+    phonon_energies, phonon_DOS = ph.dos(kpts=(20, 20, 20), npts=3000,
+                                         delta=5e-4)
+    t_check_start = time.time()
+    path = []
+    spread = 7
+    for i in np.linspace(-0.5,0.5,spread):
+        for j in np.linspace(-0.5,0.5,spread):
+            for k in np.linspace(-0.5,0.5,spread):
+                path.append((i,j,k))
+                
+    bs = ph.band_structure(path,verbose=False)
+    flip = False
+    for i in range(len(bs)):
+       for j in range(len(bs[0])): 
+           if bs[i][j] < 0:
+               if flip == False:
+                   print("Imaginary frequencies")
+                   print("{:>19} {:>9} {:>7}".format("k-point","eV","1/cm"))
+                   flip = True
+               print("({:5.2f},{:5.2f},{:5.2f}) {:9.6f} {:7.2f}"
+                     .format(path[i][0],path[i][1],path[i][2],bs[i][j],bs[i][j]*8065.54))
+
+
+    t_check_end = time.time()
+    print()
+
+    # Calculate the Helmholtz free energy
+    thermo = CrystalThermo(phonon_energies=phonon_energies,
+                           phonon_DOS=phonon_DOS,
+                           potentialenergy=compound.e_opt,
+                           formula_units=1)
+    for T in temperatures:
+        print("===============================")
+        print("Thermodynamics at {:9.2f} K".format(T))
+        print("===============================")
+        F = thermo.get_helmholtz_energy(temperature=T)
+
+
+    print("Displacements/s: {:9.3f}".format(displacement_end-phonon_start))
+    print("Phonons/s: {:9.3f}".format(t_check_start-displacement_end))
+    print("Time for imaginary check: {:9.3f} s".format(t_check_end-t_check_start))
+    
+def perform_md(compound,settings):
+    print(123)
         
 def write_results(file,parameters,mode):
     with open(file, mode=mode) as f:
         f.write(parameters)
 
 
-def print_separator(symbol,n=32):
-    print("")
-    for i in range(n):
-        print(symbol,end="")
-    print("")
-    print("")
+
     
 class time_tracker:
     def __init__(self):
@@ -113,6 +187,7 @@ if __name__ == "__main__":
     # print(sys.path)
     
     import MACE_calc_setup as setup
+    import MACE_calc_util as util
     
     # handle SLURM job - separate file
     # DONE      read in arguments with basic data
@@ -130,15 +205,14 @@ if __name__ == "__main__":
     
     
     # read in arguments with basic data
-    
     compounds, settings, procedure = setup.read_arguments(sys.argv)
     calculator = settings.set_calculator()       
     
-    print_separator("-")
+    util.print_separator("-")
     
     time_tracker.time_evaluation(label="setup",mode="step")
     
-    print_separator("=")    
+    util.print_separator("=")    
     # create output file
     file_results = "MACE_"+procedure+".dat"
     write_results(file_results, "{:16} {:8} {:5}\n".format("ID","E","Multi"), "w") 
@@ -160,11 +234,18 @@ if __name__ == "__main__":
         
         # single-point module
         if procedure == "sp":
-            perform_singlepoint(compound)
+            perform_singlepoint(compound,settings)
             
         # optimization module
         if procedure == "opt":
-            perform_optimization(compound)
+            perform_optimization(compound,settings)
+            
+        if procedure == "phon":
+            perform_optimization(compound,settings)
+            perform_phonon(compound,settings)
+        
+        if procedure == "md":
+            perform_md(compound,settings)
             
         time_tracker.time_evaluation("compound_"+str(i),"step")
         
@@ -174,14 +255,18 @@ if __name__ == "__main__":
         
         if elapsed + left > settings.max_time:
             print("Estimated runtime likely exceeds time limit of {} s.".format(settings.max_time))
-        if elapsed > settings.max_time - 600:
-            print("RUNNING OUT OF TIME!")
-            # trigger graceful exit instead !!!
+        if elapsed > settings.max_time - 60:
+            print("Approaching runtime limit, initiating graceful exit.")
+            with open("compounds_remaining.dat", mode="w") as f:
+                for j in range(i,len(compounds)):
+                    f.write(compounds[j].file+"\n")
+            sys.exit()
+                
         
-        print_separator("-")
+        util.print_separator("-")
      
         
-print_separator("=")
+util.print_separator("=")
 elapsed, left, average = time_tracker.time_estimator(len(compounds))
 print("Average time per calculation: {:8.3f} s".format(average))
 time_tracker.time_evaluation("final","total")

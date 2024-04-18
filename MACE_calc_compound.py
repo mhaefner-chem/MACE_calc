@@ -14,6 +14,7 @@ class compound:
     def __init__(self,file,structure):
         self.structure = structure
         self.file = file
+        self.e_opt = 0
         
         self.multiplicity = 1
         
