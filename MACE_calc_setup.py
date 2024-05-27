@@ -38,6 +38,10 @@ class settings:
         # optimization
         self.f_max = 0.01
         self.max_steps = 250
+        self.sym = True
+        
+        # bulk modulus calculation
+        self.bulk_mod_delta = 0.01
         
         # phonons
         self.min_len = 12.0
@@ -79,6 +83,11 @@ class settings:
                     self.max_time = float(line.split()[-1])
                 elif "proc" in line.lower():
                     self.procedure = line.split()[-1]
+                    
+                # bulk modulus settings
+                elif "delta_bulk" in line.lower():
+                    self.bulk_mod_delta = float(line.split()[-1])
+                    
                 elif "min_len" in line.lower():
                     self.min_len = float(line.split()[-1])
                 elif "md_t" in line.lower():
@@ -91,7 +100,7 @@ class settings:
                     self.t_max = float(line.split()[-1])
                 elif "t_steps" in line.lower():
                     self.t_steps = int(line.split()[-1])
-                    
+                
                 # writes and prints
                 elif "write_geom" in line.lower():
                     if line.split()[-1].lower() == "true":
@@ -162,11 +171,19 @@ class settings:
             print("")
             
             # optimization
-            if self.procedure in ["opt","analysis"]:
+            if self.procedure in ["opt","bulk","phon","analysis"]:
                 print("Optimization")
                 print("")
                 print_item("F_max [eV/Å]:",self.f_max)
                 print_item("Max_steps:",self.max_steps)
+                print_item("Sym:",self.sym)
+                print("")
+                
+            # bulk modulus calculation
+            if self.procedure in ["bulk","analysis"]:
+                print("Bulk Modulus")
+                print("")
+                print_item("Delta [%]:",self.bulk_mod_delta)
                 print("")
             
             # phonons
@@ -208,7 +225,8 @@ def read_arguments(arguments):
     options["procedure"] = ["-p","--proc","--procedure"]
     options["settings"] = ["-s","--setting","--settings","-i","--input"]
     options["verbosity"] = ["-v","--verbosity"]
-    
+    options["symmetry"] = ["--nosym"]   
+ 
     n = len(sys.argv)
     
     compounds = []
@@ -235,6 +253,8 @@ def read_arguments(arguments):
             settings_calculation.model = sys.argv[i+1]
         elif argument in options["verbosity"]:
             settings_calculation.verbosity = int(sys.argv[i+1])
+        elif argument in options["symmetry"]:
+            settings_calculation.sym = False
         
     
     try:
@@ -250,6 +270,7 @@ def read_arguments(arguments):
     procedures["opt"] = ["opt","optimization","o"]
     procedures["phon"] = ["p","phon","phonon"]
     procedures["md"] = ["m","md"]
+    procedures["bulk"] = ["b","bulk","bulkmodulus"]
     
     # print(settings_calculation.procedure)
     

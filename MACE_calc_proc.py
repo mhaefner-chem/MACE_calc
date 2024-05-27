@@ -27,11 +27,17 @@ def perform_optimization(compound,settings):
     
     struc_sym = util.get_symmetry(compound.structure)
     struc_sym.calc = settings.calculator
-    ucf = UnitCellFilter(struc_sym)
+    if settings.sym == True:
+        ucf = UnitCellFilter(struc_sym)
+    else:
+        ucf = struc_sym
     print("Optimization with F_max = {} eV/Å".format(settings.f_max))
     print("")
     relax = BFGS_LS(atoms=ucf)
     relax.run(fmax=settings.f_max,steps=settings.max_steps)
+    
+    print("Remaining pressure: {:9.3f} kbar".format(-np.mean(struc_sym.get_stress()[0:3])* util.unit_conversion("p", "eV", "kbar")))
+    
     # relax.run(fmax=0.1)
     
     print("")
@@ -42,7 +48,52 @@ def perform_optimization(compound,settings):
         struc_sym.write(compound.name+"_OPT.xyz",format="extxyz")
     
 
-# function for single point calculation
+# function for calculation of bulk modulus
+
+def perform_bulkmod(compound,settings):
+    opt_struc = ase_read(compound.name+"_OPT.xyz",format="extxyz")
+    
+    strucs = {"big":{"struc":opt_struc.copy(),"E":0,"V":0,"p":0},"small":{"struc":opt_struc.copy(),"E":0,"V":0,"p":0}}
+
+    
+    
+    for size in strucs:
+        
+        util.print_separator("-")
+        if size == "big":
+            factor = 1
+            label = "Bigger"
+        elif size == "small":
+            factor = -1
+            label = "Smaller"
+        else:
+            factor = 0
+                
+        strucs[size]["struc"].cell = strucs[size]["struc"].cell * (1 + factor * settings.bulk_mod_delta)
+        strucs[size]["struc"].calc = settings.calculator
+        
+        
+        relax = BFGS_LS(atoms=strucs[size]["struc"])
+        relax.run(fmax=settings.f_max,steps=settings.max_steps)
+        strucs[size]["E"] = strucs[size]["struc"].get_potential_energy()
+        strucs[size]["V"] = strucs[size]["struc"].get_volume()
+        strucs[size]["p"] = np.mean(strucs[size]["struc"].get_stress()[0:3])
+        
+        print("{} cell".format(label))
+        print("Volume: {:9.3f} Å³, pressure: {:6.3f} GPa".format(strucs[size]["V"],-strucs[size]["p"]* util.unit_conversion("p", "eV", "GPa")))
+    
+    util.print_separator("-")
+    
+    delta_V = strucs["big"]["V"]-strucs["small"]["V"]
+    delta_p = strucs["big"]["p"]-strucs["small"]["p"]
+    
+    bulk_mod = (strucs["big"]["V"]+strucs["small"]["V"])/2 * delta_p/delta_V
+    
+    print("Bulk modulus: {:6.3f} GPa".format(bulk_mod * util.unit_conversion("p", "eV", "GPa")))
+    compound.bulk_mod = bulk_mod
+    
+
+# function for phonon calculation
 from ase.phonons import Phonons
 from ase.thermochemistry import CrystalThermo
 from ase.io import read as ase_read
@@ -121,13 +172,14 @@ def perform_phonon(compound,settings):
 
 from ase.build import make_supercell
 from ase.md.langevin import Langevin
+from ase.md.nptberendsen import NPTBerendsen
 from ase import units
 from ase.md import MDLogger
 import sys
 def perform_md(compound,settings):
     
     N = [1,1,1]
-    min_len = 18
+    min_len = 3
 
     for i in range(len(compound.structure.cell.lengths())):
         while N[i]*compound.structure.cell.lengths()[i] < min_len:
@@ -145,17 +197,21 @@ def perform_md(compound,settings):
 
     MD_init = time.time()
 
-    dyn = Langevin(sc, settings.stepsize*units.fs, temperature_K=settings.md_T, friction=5e-3)
+    # dyn = Langevin(sc, settings.step_size*units.fs, temperature_K=settings.md_T, friction=5e-3)
+    dyn = NPTBerendsen(sc, timestep=settings.step_size*units.fs, temperature_K=settings.md_T,
+                   taut=100 * units.fs, pressure_au=1.01325 * units.bar,
+                   taup=1000 * units.fs, compressibility_au=4.57e-5 / units.bar)
     
     def write_frame():
         MD_step = time.time()
         dyn.atoms.write(compound.name+"_MD.xyz",format="extxyz",append=True)
+        print(dyn.nsteps,dyn.max_steps,dyn.nsteps/(MD_step-MD_init))
         with open(compound.name+"_MD.out",mode="a") as f:
             f.write("{} {} {}\n".format(dyn.nsteps,dyn.max_steps,dyn.nsteps/(MD_step-MD_init)))
     dyn.attach(write_frame, interval=30)
     dyn.attach(MDLogger(dyn, sc, 'md.log', header=False, stress=False,
                peratom=True, mode="a"), interval=10)
-    dyn.run(6000)
+    dyn.run(1000)
     print("MD finished!")
     
     sys.exit()

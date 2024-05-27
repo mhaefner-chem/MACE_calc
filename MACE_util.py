@@ -17,7 +17,15 @@ def print_separator(symbol,n=32,skip=True):
     if skip == True:
         print("")
         
-        
+def unit_conversion(prop,orig,dest):
+    # http://greif.geo.berkeley.edu/~driver/conversions.html
+    
+    if prop == "p":
+        unit_conversion_factors = {"eV":1/160.218,"GPa":1,"kbar":10,"bar":10000} # from eV/AA³
+        factor = unit_conversion_factors[dest]/unit_conversion_factors[orig]
+    
+    return factor
+    
 def write_results(file,parameters,mode):
     with open(file, mode=mode) as f:
         f.write(parameters)

@@ -15,6 +15,7 @@ class compound:
         self.structure = structure
         self.file = file
         self.e_opt = 0
+        self.bulk_mod = 0
         
         self.multiplicity = 1
         

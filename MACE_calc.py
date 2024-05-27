@@ -111,15 +111,27 @@ if __name__ == "__main__":
             proc.perform_singlepoint(compound,settings)
             
         # optimization module
-        if procedure == "opt":
+        if procedure in ["opt"]:
             proc.perform_optimization(compound,settings)
+            
+        # optimization module
+        if procedure == "bulk":
+            if not os.path.isfile(compound.name+"_OPT.xyz"):
+                proc.perform_optimization(compound,settings)
+            else:
+                print("Using structure from previous optimiziation {}_OPT.xyz".format(compound.name))
+            proc.perform_bulkmod(compound,settings)
             
         if procedure == "phon":
             if not os.path.isfile(compound.name+"_OPT.xyz"):
                 proc.perform_optimization(compound,settings)
+            else:
+                print("Using structure from previous optimiziation {}_OPT.xyz".format(compound.name))
             proc.perform_phonon(compound,settings)
         
         if procedure == "md":
+            proc.perform_optimization(compound,settings)
+            proc.perform_bulkmod(compound,settings)
             if len(compounds) > 1:
                 print("More than one compound specified for MD. Only one will be performed.")
             proc.perform_md(compound,settings)
