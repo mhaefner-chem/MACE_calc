@@ -34,25 +34,46 @@ class settings:
         self.model = "macemp0"
         self.acc = "float64"
         self.dispersion = 0
+        self.use_gpu = False
         
         # optimization
-        self.f_max = 0.01
-        self.max_steps = 250
+        self.opt_f_max = 0.01
+        self.opt_max_steps = 250
         self.sym = True
         
         # bulk modulus calculation
-        self.bulk_mod_delta = 0.01
+        self.bulk_mod_delta = 0.003322
+        self.set_bulk_mod = -1
         
         # phonons
-        self.min_len = 12.0
-        self.t_min = 300
-        self.t_max = 300
-        self.t_steps = 1
-        self.temperatures = np.linspace(self.t_min,self.t_max,self.t_steps)
+        self.phon_min_len = 12.0
+        self.phon_t_min = 300
+        self.phon_t_max = 300
+        self.phon_t_steps = 1
+        self.temperatures = np.linspace(self.phon_t_min,self.phon_t_max,self.phon_t_steps)
         
         # MD
         self.md_T = 300
-        self.step_size = 1.5
+        self.md_T_min = -1
+        self.md_T_max = -1
+        self.md_T_steps = 3
+        
+        self.md_p = 1.01325
+        
+        self.md_step_size = 1.5
+        self.md_step_n = 100
+        
+        self.md_min_len = 12.0
+        self.md_sc = "" # explicitly set supercell size
+        self.md_taut = 100
+        self.md_taup = 1000
+        self.md_algo = "nptb"
+        # NPT Nose-Hoover
+        self.md_ttime = 25.0
+        self.md_ptime = 75.0
+        
+        self.md_interval_write_e = 10
+        self.md_interval_write_s = 25
         
         # time management
         self.max_time = 72000 # 72000 s/20 h as time limit
@@ -76,9 +97,9 @@ class settings:
                 elif "acc" in line.lower():
                     self.acc = line.split()[-1]
                 elif "f_max" in line.lower():
-                    self.f_max = float(line.split()[-1])
+                    self.opt_f_max = float(line.split()[-1])
                 elif "max_steps" in line.lower():
-                    self.max_steps = int(line.split()[-1])
+                    self.opt_max_steps = int(line.split()[-1])
                 elif "max_time" in line.lower():
                     self.max_time = float(line.split()[-1])
                 elif "proc" in line.lower():
@@ -87,19 +108,57 @@ class settings:
                 # bulk modulus settings
                 elif "delta_bulk" in line.lower():
                     self.bulk_mod_delta = float(line.split()[-1])
+                elif "set_bulk_mod" in line.lower():
+                    self.set_bulk_mod = float(line.split()[-1])
                     
-                elif "min_len" in line.lower():
-                    self.min_len = float(line.split()[-1])
+                
+                
+                
+                # settings for phonon calculations
+                elif "phon_min_len" in line.lower():
+                    self.phon_min_len = float(line.split()[-1])
+                elif "phon_t_min" in line.lower():
+                    self.phon_t_min = float(line.split()[-1])
+                elif "phon_t_max" in line.lower():
+                    self.phon_t_max = float(line.split()[-1])
+                elif "phon_t_steps" in line.lower():
+                    self.phon_t_steps = int(line.split()[-1])
+                    
+                # settings for MD calculations
+                elif "md_ttime" in line.lower():
+                    self.md_ttime = float(line.split()[-1])
+                elif "md_ptime" in line.lower():
+                    self.md_ptime = float(line.split()[-1])
+                elif "md_t_min" in line.lower():
+                    self.md_T_min = float(line.split()[-1])
+                elif "md_t_max" in line.lower():
+                    self.md_T_max = float(line.split()[-1])
+                elif "md_t_steps" in line.lower():
+                    self.md_T_steps = int(line.split()[-1])  
                 elif "md_t" in line.lower():
-                    self.md_t = float(line.split()[-1])
-                elif "step_size" in line.lower():
-                    self.step_size = float(line.split()[-1])
-                elif "t_min" in line.lower():
-                    self.t_min = float(line.split()[-1])
-                elif "t_max" in line.lower():
-                    self.t_max = float(line.split()[-1])
-                elif "t_steps" in line.lower():
-                    self.t_steps = int(line.split()[-1])
+                    self.md_T = float(line.split()[-1])
+                elif "md_p" in line.lower():
+                    self.md_p = float(line.split()[-1])
+                elif "md_step_size" in line.lower():
+                    self.md_step_size = float(line.split()[-1])
+                elif "md_min_len" in line.lower():
+                    self.md_min_len = float(line.split()[-1])
+                elif "md_sc" in line.lower():
+                    self.md_sc = line.split()[-1]
+                elif "md_step_n" in line.lower():
+                    self.md_step_n = int(line.split()[-1])
+                elif "md_interval_write_e" in line.lower():
+                    self.md_interval_write_e = int(line.split()[-1])
+                elif "md_interval_write_s" in line.lower():
+                    self.md_interval_write_s = int(line.split()[-1])
+                elif "md_taut" in line.lower():
+                    self.md_taut = float(line.split()[-1])
+                elif "md_taup" in line.lower():
+                    self.md_taup = float(line.split()[-1])
+                elif "md_algo" in line.lower():
+                    self.md_algo = line.split()[-1]
+                
+                    
                 
                 # writes and prints
                 elif "write_geom" in line.lower():
@@ -127,15 +186,26 @@ class settings:
                         self.print_stresses = True
                     else:
                         self.print_stresses = False
+                elif "use_gpu" in line.lower():
+                    if line.split()[-1].lower() == "true":
+                        self.use_gpu = True
+                    else:
+                        self.use_gpu  = False
+                
+                elif "sym" in line.lower():
+                    if line.split()[-1].lower() == "true":
+                        self.sym = True
+                    else:
+                        self.sym  = False
             
         try:
-            self.temperatures = np.linspace(self.t_min,self.t_max,self.t_steps)
+            self.temperatures = np.linspace(self.phon_t_min,self.phon_t_max,self.phon_t_steps)
         except:
             self.temperatures = [300]
     
     # constructs the calculator
     def set_calculator(self):
-        self.calculator = setup_model(self.model,self.dispersion,self.acc)
+        self.calculator = setup_model(self.model,self.dispersion,self.use_gpu,self.acc)
         return self.calculator
 
     def print_all(self):
@@ -168,22 +238,25 @@ class settings:
             print_item("Model:",self.model)
             print_item("Accuracy:",self.acc)
             print_item("Dispersion (2=D3BJ):",self.dispersion)
+            print_item("Use_GPU:",self.use_gpu)
+            print_item("Sym:",self.sym)
+            if self.set_bulk_mod > 0:
+                print_item("set_bulk_mod [GPa]:",self.set_bulk_mod)
             print("")
             
             # optimization
             if self.procedure in ["opt","bulk","phon","analysis"]:
                 print("Optimization")
                 print("")
-                print_item("F_max [eV/Å]:",self.f_max)
-                print_item("Max_steps:",self.max_steps)
-                print_item("Sym:",self.sym)
+                print_item("OPT_F_max [eV/Å]:",self.opt_f_max)
+                print_item("OPT_Max_steps:",self.opt_max_steps)
                 print("")
                 
             # bulk modulus calculation
             if self.procedure in ["bulk","analysis"]:
                 print("Bulk Modulus")
                 print("")
-                print_item("Delta [%]:",self.bulk_mod_delta)
+                print_item("BULK_MOD_Delta [%]:",self.bulk_mod_delta)
                 print("")
             
             # phonons
@@ -191,18 +264,35 @@ class settings:
             if self.procedure in ["phon","analysis"]:
                 print("Phonons")
                 print("")
-                print_item("Min_len [Å]:",self.min_len)
-                print_item("T_min [K]:",self.t_min)
-                print_item("T_max [K]:",self.t_max)
-                print_item("T_steps:",self.t_steps)
+                print_item("PHON_Min_len [Å]:",self.phon_min_len)
+                print_item("PHON_T_min [K]:",self.phon_t_min)
+                print_item("PHON_T_max [K]:",self.phon_t_max)
+                print_item("PHON_T_steps:",self.phon_t_steps)
                 print("")
             
             # MD
             if self.procedure in ["md","analysis"]:
                 print("MD")
                 print("")
-                print_item("T_MD [K]:",self.md_T)
-                print_item("Step_size [fs]:",self.step_size)
+                print_item("MD_T [K]:",self.md_T)
+                if self.md_T_min > 0:
+                    print_item("MD_T_min [K]:",self.md_T_min)
+                if self.md_T_max > 0:
+                    print_item("MD_T_max [K]:",self.md_T_max)
+                    print_item("MD_T_steps [K]:",self.md_T_steps)
+                print_item("MD_p [bar]:",self.md_p)
+                print_item("MD_Step_size [fs]:",self.md_step_size)
+                print_item("MD_step_n:",self.md_step_n)
+                print_item("MD_Min_len [Å]:",self.md_min_len)
+                print_item("MD_interval_write_E [steps]:",self.md_interval_write_e)
+                print_item("MD_interval_write_S [steps]:",self.md_interval_write_s)
+                if self.md_algo == "nptb":
+                    print_item("MD_tauT [1/fs]:",self.md_taut)
+                    print_item("MD_taup [1/fs]:",self.md_taup)
+                elif self.md_algo == "npt":
+                    print_item("MD_ttime [fs]:",self.md_ttime)
+                    print_item("MD_ptime [fs]:",self.md_ptime)
+                print_item("MD_algo:",self.md_algo)
                 print("")
             
             # time management
@@ -226,6 +316,7 @@ def read_arguments(arguments):
     options["settings"] = ["-s","--setting","--settings","-i","--input"]
     options["verbosity"] = ["-v","--verbosity"]
     options["symmetry"] = ["--nosym"]   
+    options["gpu"] = ["-g","--gpu"]   
  
     n = len(sys.argv)
     
@@ -243,7 +334,7 @@ def read_arguments(arguments):
             for item in read_compound_list(sys.argv[i+1]):
                 compounds.append(item)
         elif argument in options["dispersion"]:
-            settings_calculation.dispersion = 2
+            settings_calculation.dispersion = 3
         elif argument in options["procedure"]:
             settings_calculation.procedure = sys.argv[i+1]
         elif argument in options["settings"]:
@@ -255,6 +346,8 @@ def read_arguments(arguments):
             settings_calculation.verbosity = int(sys.argv[i+1])
         elif argument in options["symmetry"]:
             settings_calculation.sym = False
+        elif argument in options["gpu"]:
+            settings_calculation.use_gpu = True
         
     
     try:
@@ -311,7 +404,7 @@ MACE_calc.py -l <LIST_OF_COMPOUNDS -s <SETTINGS_FILE> <OPTIONS>''')
     print(formatting.format("-s [ --settings ] <ARG>","<ARG> contains more detailed settings for the calculation."))
     print(formatting.format("-d [ --d3bj ]","Activates Grimme D3(BJ) dispersion correction."))
     print(formatting.format("-v [ --verbosity ] <ARG>","Changes the verbosity of the output. Default = 1."))
-    
+    print(formatting.format("-g [ --gpu ] <ARG>","Use a GPU for calculations instead of CPU. Default = False."))
 
     sys.exit()
 
@@ -348,25 +441,31 @@ def read_compound_list(file):
 
 # initializes the calculator
 from mace.calculators import mace_mp, MACECalculator
-from torch_dftd.torch_dftd3_calculator import TorchDFTD3Calculator as DFTD3
-from dftd3.ase import DFTD3 as Simple_DFTD3
 from ase.calculators.mixing import SumCalculator as Calc_Sum
 
-def setup_model(file,dispersion,default_dtype="float64"):
+def setup_model(file,dispersion,gpu,default_dtype="float64"):
         
     # check whether it defaults to MACE-MP-0
     if file == "macemp0":
         macemp = mace_mp(default_dtype=default_dtype)
     else:
         print("Using "+os.path.basename(file)+" as MACE model.")
-        macemp = MACECalculator(model_paths=file,default_dtype=default_dtype,device="cpu")
+        if gpu == True:
+            import torch
+            print("CUDA found:",torch.cuda.is_available())
+            macemp = MACECalculator(model_paths=file,default_dtype=default_dtype,device="cuda")
+        else:
+            macemp = MACECalculator(model_paths=file,default_dtype=default_dtype,device="cpu")
 
     # activate dispersion, if requested
     if dispersion == 1:
+        from torch_dftd.torch_dftd3_calculator import TorchDFTD3Calculator as DFTD3
         macemp = DFTD3(dft=macemp)
     elif dispersion == 2:
+        from torch_dftd.torch_dftd3_calculator import TorchDFTD3Calculator as DFTD3
         macemp = DFTD3(dft=macemp,damping="bj")
     elif dispersion == 3:
+        from dftd3.ase import DFTD3 as Simple_DFTD3
         print("Using Simple DFTD3.")
         macemp = Calc_Sum([macemp,Simple_DFTD3(method="PBE",damping="d3bj")])
     elif dispersion == 4:

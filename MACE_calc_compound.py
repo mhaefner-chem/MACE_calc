@@ -15,7 +15,7 @@ class compound:
         self.structure = structure
         self.file = file
         self.e_opt = 0
-        self.bulk_mod = 0
+        self.bulk_mod = -1
         
         self.multiplicity = 1
         
@@ -23,9 +23,10 @@ class compound:
         
     def get_name(self):
         if "supercell" in self.file:
-            multi = self.file.split("_")[2]
+            multi = self.file.split("w")[1]
+            multi = multi.split("_")[0]
             multi = multi.split(".")[0]
-            multi = int(multi.split("w")[1])
+            multi = int(multi)
             self.multiplicity = multi
             
         name = os.path.basename(self.file)

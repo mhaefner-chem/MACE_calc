@@ -40,14 +40,19 @@ def get_len_vec(vec):
     return vec_len
         
 # analyzes symmetry
-from ase.spacegroup.symmetrize import FixSymmetry, check_symmetry
 def get_symmetry(structure,verbosity = 0, prec=0.01):
-    if verbosity > 0:
-        print("Given symmetry at precision {}:".format(prec))
-        sym = check_symmetry(structure, prec, verbose=False)
-        print("SG {} Hermann-Maughin {}, Hall {}".format(sym["number"],sym["international"],sym["hall"]))
-    structure_sym = structure.copy()
-    structure_sym.set_constraint(FixSymmetry(structure))
+    
+    try: 
+        from ase.spacegroup.symmetrize import FixSymmetry, check_symmetry
+        if verbosity > 0:
+            print("Given symmetry at precision {}:".format(prec))
+            sym = check_symmetry(structure, prec, verbose=False)
+            print("SG {} Hermann-Maughin {}, Hall {}".format(sym["number"],sym["international"],sym["hall"]))
+        structure_sym = structure.copy()
+        structure_sym.set_constraint(FixSymmetry(structure))
+    except:
+        print("WARNING! No spglib found. Proceeding without symmetry.")
+        structure_sym = structure.copy()
     return structure_sym
 
 # prints results from calculation

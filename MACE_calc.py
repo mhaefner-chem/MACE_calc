@@ -130,8 +130,12 @@ if __name__ == "__main__":
             proc.perform_phonon(compound,settings)
         
         if procedure == "md":
-            proc.perform_optimization(compound,settings)
-            proc.perform_bulkmod(compound,settings)
+            if settings.md_algo in ["nptb","npt"]:
+                if settings.set_bulk_mod < 0:
+                    proc.perform_optimization(compound,settings)
+                    proc.perform_bulkmod(compound,settings)
+                else:
+                    compound.bulk_mod = settings.set_bulk_mod * util.unit_conversion("p", "GPa", "eV")
             if len(compounds) > 1:
                 print("More than one compound specified for MD. Only one will be performed.")
             proc.perform_md(compound,settings)
