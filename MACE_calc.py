@@ -90,9 +90,28 @@ if __name__ == "__main__":
     if settings.write_energies == True and settings.verbosity > -1:
         util.write_results(settings.file_results, "{:16} {:8} {:5} {}\n".format("ID","E","Multi",datetime.datetime.now()), "a") 
    
+    pbc_numerical = []
+    for letter in settings.pbc:
+       if letter == "0" or letter == "1":
+           pbc_numerical.append(int(letter))
+    if len(pbc_numerical) != 3:
+        print("ERROR in PBC settings!")
+   
     i = 0
     for compound in compounds:
+        
+        
+        N = [1,1,1]
+        if "x" in settings.sc:
+            from ase.build import make_supercell
+            tmp = settings.sc.split("x")
+            for i in range(3):
+                N[i] = int(tmp[i])
+            compound.structure = make_supercell(compound.structure,((N[0],0,0),(0,N[1],0),(0,0,N[2])))
+        
         i += 1
+        compound.structure.set_pbc(pbc_numerical)
+        
         compound.structure.calc = calculator
         
         
@@ -112,7 +131,10 @@ if __name__ == "__main__":
             
         # optimization module
         if procedure in ["opt"]:
-            proc.perform_optimization(compound,settings)
+            if not os.path.isfile(compound.name+"_OPT.xyz"):
+                proc.perform_optimization(compound,settings)
+            else:
+                print("Calculation of "+compound.name+"_OPT.xyz already performed.")
             
         # optimization module
         if procedure == "bulk":
@@ -139,6 +161,9 @@ if __name__ == "__main__":
             if len(compounds) > 1:
                 print("More than one compound specified for MD. Only one will be performed.")
             proc.perform_md(compound,settings)
+        
+        if procedure == "neb":
+            proc.perform_neb(compound,settings)
             
         time_tracker.time_evaluation("compound_"+str(i),"step")
         

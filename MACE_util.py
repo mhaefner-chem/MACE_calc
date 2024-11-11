@@ -43,7 +43,8 @@ def get_len_vec(vec):
 def get_symmetry(structure,verbosity = 0, prec=0.01):
     
     try: 
-        from ase.spacegroup.symmetrize import FixSymmetry, check_symmetry
+        from ase.spacegroup.symmetrize import check_symmetry
+        from ase.constraints import FixSymmetry
         if verbosity > 0:
             print("Given symmetry at precision {}:".format(prec))
             sym = check_symmetry(structure, prec, verbose=False)
@@ -190,6 +191,20 @@ def get_distance(pos1, pos2):
         
     return distance
     
+def read_structure(file):
+    from ase.io import read as ase_read
+    file_ending = file.split(".")[-1].lower()
+    
+    if file_ending == "vasp" or file in ["POSCAR","CONTCAR"]:
+        atoms = ase_read(file,index=":",format="vasp")
+    elif file_ending == "cif":
+        atoms = ase_read(file,index=":",format='cif')
+    elif file_ending == "xyz":
+        atoms = ase_read(file,index=":",format='extxyz')
+    else:
+        atoms = ase_read(file,index=":")
+    
+    return atoms
 
 
 

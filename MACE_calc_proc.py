@@ -16,7 +16,7 @@ def perform_singlepoint(compound,settings):
     util.print_results(settings,compound,compound.structure,settings.verbosity)
     print("")
     
-from ase.constraints import UnitCellFilter
+from ase.filters import ExpCellFilter
 from ase.optimize import BFGSLineSearch as BFGS_LS
 
 def perform_optimization(compound,settings):
@@ -25,17 +25,20 @@ def perform_optimization(compound,settings):
     compound.structure.get_potential_energy()
     util.print_results(settings,compound,compound.structure,verbosity=-1)
     
-
-    struc = util.get_symmetry(compound.structure)
+    if settings.sym == True:
+        struc = util.get_symmetry(compound.structure)
+    else:
+        struc = compound.structure
+        
 
     struc.calc = settings.calculator
-    if settings.sym == True:
-        ucf = UnitCellFilter(struc)
+    if settings.opt_cell == True:
+        ucf = ExpCellFilter(struc,mask=settings.opt_mask)
     else:
-        ucf = compound.structure
+        ucf = struc
     print("Optimization with F_max = {} eV/Å".format(settings.opt_f_max))
     print("")
-    relax = BFGS_LS(atoms=ucf)
+    relax = BFGS_LS(atoms=ucf,trajectory="opt.traj")
     relax.run(fmax=settings.opt_f_max,steps=settings.opt_max_steps)
     
     print("Remaining pressure: {:9.3f} kbar".format(-np.mean(struc.get_stress()[0:3])* util.unit_conversion("p", "eV", "kbar")))
@@ -203,8 +206,8 @@ def perform_md(compound,settings):
     
     N = [1,1,1]
     
-    if "x" in settings.md_sc:
-        tmp = settings.md_sc.split("x")
+    if "x" in settings.sc:
+        tmp = settings.sc.split("x")
         for i in range(3):
             N[i] = int(tmp[i])
     else:
@@ -239,14 +242,14 @@ def perform_md(compound,settings):
 INFO! MD times for energies/temperatures and structures will not match.
 Consider changing MD_interval_s (for structures) and MD_interval_e (for energies) to equal values for more simple plotting.''')
 
-    sc.set_calculator(settings.calculator)
+    sc.calc = settings.calculator
 
     
     
     # adapt settings to ramping temperature or constant temperature
-    if settings.md_T_min > 0 or settings.md_T_max > 0:
+    if settings.md_T_start > 0 or settings.md_T_end > 0:
         # subdivide by md_T_steps
-        temperatures = np.linspace(settings.md_T_min, settings.md_T_max, num=settings.md_T_steps)
+        temperatures = np.linspace(settings.md_T_start, settings.md_T_end, num=settings.md_T_steps)
         steps = math.floor(settings.md_step_n/settings.md_T_steps)
         print("Using temperature ramp with {} steps per MD and following temperatures:".format(steps))
         for temperature in temperatures:
@@ -272,9 +275,11 @@ Consider changing MD_interval_s (for structures) and MD_interval_e (for energies
                            taup=settings.md_taup * units.fs, compressibility_au=1/compound.bulk_mod)
         elif settings.md_algo == "npt":
             from ase.md.npt import NPT
+            
+            mask = settings.opt_mask
             dyn = NPT(sc, timestep=settings.md_step_size*units.fs,temperature_K=temperature,
                       externalstress=settings.md_p * units.bar,ttime=settings.md_ttime * units.fs,
-                      pfactor=settings.md_ptime**2 * compound.bulk_mod * units.fs**2)
+                      pfactor=settings.md_ptime**2 * compound.bulk_mod * units.fs**2, mask=mask)
             print("Pfactor:",settings.md_ptime**2 * compound.bulk_mod/units.GPa,"GPa fs²")
         elif settings.md_algo == "nve":
             from ase.md.verlet import VelocityVerlet
@@ -317,3 +322,37 @@ Consider changing MD_interval_s (for structures) and MD_interval_e (for energies
             print("MD {}/{} finished.".format(md_i,len(temperatures)))
         
     sys.exit()
+
+
+def perform_neb(compound,settings):
+    from ase.mep.neb import NEB
+    from ase.optimize import BFGS
+    
+    # read initial and end states
+    neb_init = util.read_structure(settings.neb_init_file)[0]
+    neb_end = util.read_structure(settings.neb_end_file)[0]
+    
+    # construct band
+    neb_images = [neb_init]
+    for i in range(settings.neb_n_images-2):
+        neb_images += [neb_init.copy()]
+    neb_images += [neb_end]
+    
+    neb = NEB(neb_images,climb=settings.neb_climb,allow_shared_calculator=True)
+    neb.interpolate()
+    for image in neb_images[1:settings.neb_n_images-1]:
+        image.calc = settings.calculator
+    
+    opt = BFGS(neb,trajectory="neb.traj")
+    opt.run(fmax=settings.neb_f_max)
+    
+    # write final trajectory
+    final_traj = []
+
+    all_traj = ase_read("neb.traj",index=":")
+    for i in range(len(all_traj)-settings.neb_n_images,len(all_traj)):
+        final_traj.append(all_traj[i])
+    
+    from ase.io import write as ase_write
+    ase_write("neb_final.traj",final_traj)
+

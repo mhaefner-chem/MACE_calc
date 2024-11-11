@@ -29,6 +29,8 @@ class settings:
         self.print_forces = False
         self.print_stresses = False
         
+        self.pbc = "111"
+        
         
         # calculator parameters
         self.model = "macemp0"
@@ -39,7 +41,10 @@ class settings:
         # optimization
         self.opt_f_max = 0.01
         self.opt_max_steps = 250
+    
         self.sym = True
+        self.opt_cell = True
+        self.opt_mask = [[1,1,1],[1,1,1],[1,1,1]]
         
         # bulk modulus calculation
         self.bulk_mod_delta = 0.003322
@@ -54,8 +59,8 @@ class settings:
         
         # MD
         self.md_T = 300
-        self.md_T_min = -1
-        self.md_T_max = -1
+        self.md_T_start = -1
+        self.md_T_end = -1
         self.md_T_steps = 3
         
         self.md_p = 1.01325
@@ -64,16 +69,24 @@ class settings:
         self.md_step_n = 100
         
         self.md_min_len = 12.0
-        self.md_sc = "" # explicitly set supercell size
+        self.sc = "" # explicitly set supercell size
         self.md_taut = 100
         self.md_taup = 1000
         self.md_algo = "nptb"
+
         # NPT Nose-Hoover
         self.md_ttime = 25.0
         self.md_ptime = 75.0
         
         self.md_interval_write_e = 10
-        self.md_interval_write_s = 25
+        self.md_interval_write_s = 10
+        
+        # neb management
+        self.neb_init_file = "01.xyz"
+        self.neb_end_file = "02.xyz"
+        self.neb_n_images = 5
+        self.neb_f_max = 0.05
+        self.neb_climb = True
         
         # time management
         self.max_time = 72000 # 72000 s/20 h as time limit
@@ -96,7 +109,7 @@ class settings:
                     self.model = line.split()[-1]
                 elif "acc" in line.lower():
                     self.acc = line.split()[-1]
-                elif "f_max" in line.lower():
+                elif "opt_f_max" in line.lower():
                     self.opt_f_max = float(line.split()[-1])
                 elif "max_steps" in line.lower():
                     self.opt_max_steps = int(line.split()[-1])
@@ -104,7 +117,8 @@ class settings:
                     self.max_time = float(line.split()[-1])
                 elif "proc" in line.lower():
                     self.procedure = line.split()[-1]
-                    
+                elif "pbc" in line.lower():
+                    self.pbc = line.split()[-1]
                 # bulk modulus settings
                 elif "delta_bulk" in line.lower():
                     self.bulk_mod_delta = float(line.split()[-1])
@@ -129,10 +143,10 @@ class settings:
                     self.md_ttime = float(line.split()[-1])
                 elif "md_ptime" in line.lower():
                     self.md_ptime = float(line.split()[-1])
-                elif "md_t_min" in line.lower():
-                    self.md_T_min = float(line.split()[-1])
-                elif "md_t_max" in line.lower():
-                    self.md_T_max = float(line.split()[-1])
+                elif "md_t_start" in line.lower():
+                    self.md_T_start = float(line.split()[-1])
+                elif "md_t_end" in line.lower():
+                    self.md_T_end = float(line.split()[-1])
                 elif "md_t_steps" in line.lower():
                     self.md_T_steps = int(line.split()[-1])  
                 elif "md_t" in line.lower():
@@ -143,8 +157,8 @@ class settings:
                     self.md_step_size = float(line.split()[-1])
                 elif "md_min_len" in line.lower():
                     self.md_min_len = float(line.split()[-1])
-                elif "md_sc" in line.lower():
-                    self.md_sc = line.split()[-1]
+                elif "sc" in line.lower():
+                    self.sc = line.split()[-1]
                 elif "md_step_n" in line.lower():
                     self.md_step_n = int(line.split()[-1])
                 elif "md_interval_write_e" in line.lower():
@@ -157,6 +171,24 @@ class settings:
                     self.md_taup = float(line.split()[-1])
                 elif "md_algo" in line.lower():
                     self.md_algo = line.split()[-1]
+                    
+                # settings for NEB
+                elif "neb_init_file" in line.lower():
+                    self.neb_init_file = line.split()[-1]
+                elif "neb_end_file" in line.lower():
+                    self.neb_end_file = line.split()[-1]
+                elif "neb_climb" in line.lower():
+                    if line.split()[-1].lower() == "true":
+                        self.neb_climb = True
+                    else:
+                        self.neb_climb = False
+                elif "neb_n_im" in line.lower():
+                    self.neb_n_images = int(line.split()[-1])
+                elif "neb_f" in line.lower():
+                     print("TEST")
+                     self.neb_f_max = float(line.split()[-1])
+                
+                    
                 
                     
                 
@@ -190,13 +222,23 @@ class settings:
                     if line.split()[-1].lower() == "true":
                         self.use_gpu = True
                     else:
-                        self.use_gpu  = False
+                        self.use_gpu = False
                 
                 elif "sym" in line.lower():
                     if line.split()[-1].lower() == "true":
                         self.sym = True
                     else:
                         self.sym  = False
+                elif "opt_cell" in line.lower():
+                    if line.split()[-1].lower() == "true":
+                        self.opt_cell = True
+                    else:
+                        self.opt_cell  = False
+                elif "opt_angle" in line.lower():
+                    if line.split()[-1].lower() == "true":
+                        self.opt_mask = [1,1,1]
+                    else:
+                        self.opt_mask = [[1,0,0],[0,1,0],[0,0,1]]
             
         try:
             self.temperatures = np.linspace(self.phon_t_min,self.phon_t_max,self.phon_t_steps)
@@ -230,6 +272,7 @@ class settings:
             print_item("Write_e:",self.write_energies)
             print_item("Print_f:",self.print_forces)
             print_item("Print_s:",self.print_stresses)
+            print_item("PBC:",self.pbc)
             print("")
             
             # calculator parameters
@@ -250,6 +293,8 @@ class settings:
                 print("")
                 print_item("OPT_F_max [eV/Å]:",self.opt_f_max)
                 print_item("OPT_Max_steps:",self.opt_max_steps)
+                print_item("OPT_cell:",self.opt_cell)
+                print_item("OPT_mask:",self.opt_mask)
                 print("")
                 
             # bulk modulus calculation
@@ -275,10 +320,10 @@ class settings:
                 print("MD")
                 print("")
                 print_item("MD_T [K]:",self.md_T)
-                if self.md_T_min > 0:
-                    print_item("MD_T_min [K]:",self.md_T_min)
-                if self.md_T_max > 0:
-                    print_item("MD_T_max [K]:",self.md_T_max)
+                if self.md_T_start > 0:
+                    print_item("md_T_start [K]:",self.md_T_start)
+                if self.md_T_end > 0:
+                    print_item("md_T_end [K]:",self.md_T_end)
                     print_item("MD_T_steps [K]:",self.md_T_steps)
                 print_item("MD_p [bar]:",self.md_p)
                 print_item("MD_Step_size [fs]:",self.md_step_size)
@@ -292,7 +337,18 @@ class settings:
                 elif self.md_algo == "npt":
                     print_item("MD_ttime [fs]:",self.md_ttime)
                     print_item("MD_ptime [fs]:",self.md_ptime)
+                    print_item("OPT_mask:",self.opt_mask)
                 print_item("MD_algo:",self.md_algo)
+                print("")
+                
+            if self.procedure in ["neb","analysis"]:
+                print("NEB")
+                print("")
+                print_item("NEB_init_file:",self.neb_init_file)
+                print_item("NEB_end_file:",self.neb_end_file)
+                print_item("NEB_climb:",self.neb_climb)
+                print_item("NEB_n_images:",self.neb_n_images)
+                print_item("NEB_f_max [eV/Å]:",self.neb_f_max)
                 print("")
             
             # time management
@@ -316,7 +372,8 @@ def read_arguments(arguments):
     options["settings"] = ["-s","--setting","--settings","-i","--input"]
     options["verbosity"] = ["-v","--verbosity"]
     options["symmetry"] = ["--nosym"]   
-    options["gpu"] = ["-g","--gpu"]   
+    options["gpu"] = ["-g","--gpu"]
+    options["molecule"] = ["--mol","--molecule"]
  
     n = len(sys.argv)
     
@@ -348,6 +405,8 @@ def read_arguments(arguments):
             settings_calculation.sym = False
         elif argument in options["gpu"]:
             settings_calculation.use_gpu = True
+        elif argument in options["molecule"]:
+            settings_calculation.pbc = "000"
         
     
     try:
@@ -364,6 +423,7 @@ def read_arguments(arguments):
     procedures["phon"] = ["p","phon","phonon"]
     procedures["md"] = ["m","md"]
     procedures["bulk"] = ["b","bulk","bulkmodulus"]
+    procedures["neb"] = ["n","neb"]
     
     # print(settings_calculation.procedure)
     
@@ -410,16 +470,8 @@ MACE_calc.py -l <LIST_OF_COMPOUNDS -s <SETTINGS_FILE> <OPTIONS>''')
 
 # reads a structure from a file
 def read_compound(file):
-    file_ending = file.split(".")[-1].lower()
     
-    if file_ending == "vasp" or file in ["POSCAR","CONTCAR"]:
-        atoms = ase_read(file,index=":",format="vasp")
-    elif file_ending == "cif":
-        atoms = ase_read(file,index=":",format='cif')
-    elif file_ending == "xyz":
-        atoms = ase_read(file,index=":",format='extxyz')
-    else:
-        atoms = ase_read(file,index=":")
+    atoms = util.read_structure(file)  
         
     if len(atoms) > 1:
         print("{} structures found in input.".format(len(atoms)))
