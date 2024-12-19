@@ -28,6 +28,11 @@ class compound:
             multi = multi.split(".")[0]
             multi = int(multi)
             self.multiplicity = multi
+        elif "_multi" in self.file:
+            multi = self.file.split("_multi")[-1]
+            multi = multi.split(".")[0]
+            multi = int(multi)
+            self.multiplicity = multi
             
         name = os.path.basename(self.file)
         self.name = name.rsplit(".")[0]

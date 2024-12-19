@@ -105,8 +105,8 @@ if __name__ == "__main__":
         if "x" in settings.sc:
             from ase.build import make_supercell
             tmp = settings.sc.split("x")
-            for i in range(3):
-                N[i] = int(tmp[i])
+            for j in range(3):
+                N[j] = int(tmp[j])
             compound.structure = make_supercell(compound.structure,((N[0],0,0),(0,N[1],0),(0,0,N[2])))
         
         i += 1
@@ -167,26 +167,26 @@ if __name__ == "__main__":
             
         time_tracker.time_evaluation("compound_"+str(i),"step")
         
-               
-        elapsed, left, average = time_tracker.time_estimator(len(compounds))
-        print("Time elapsed {:8.3f} s, Time left: {:8.3f} s".format(elapsed, left))
-        
-        if elapsed + left > settings.max_time:
-            print("Estimated runtime likely exceeds time limit of {} s.".format(settings.max_time))
-        if elapsed > settings.max_time - 60:
-            print("Approaching runtime limit, initiating graceful exit.")
-            with open("compounds_remaining.dat", mode="w") as f:
-                for j in range(i,len(compounds)):
-                    f.write(compounds[j].file+"\n")
+        if len(compounds) > 1:
+            elapsed, left, average = time_tracker.time_estimator(len(compounds))
+            print("Time elapsed {:8.3f} s, Time left: {:8.3f} s".format(elapsed, left))
+            
+            if elapsed + left > settings.max_time:
+                print("Estimated runtime likely exceeds time limit of {} s.".format(settings.max_time))
+            if elapsed > settings.max_time - 60:
+                print("Approaching runtime limit, initiating graceful exit.")
+                with open("compounds_remaining.dat", mode="w") as f:
+                    for j in range(i,len(compounds)):
+                        f.write(compounds[j].file+"\n")
+                        
+                    util.print_separator("=")
+                    elapsed, left, average = time_tracker.time_estimator(len(compounds))
+                    print("Average time per calculation: {:8.3f} s".format(average))
+                    time_tracker.time_evaluation("final","total")
+                sys.exit()
                     
-                util.print_separator("=")
-                elapsed, left, average = time_tracker.time_estimator(len(compounds))
-                print("Average time per calculation: {:8.3f} s".format(average))
-                time_tracker.time_evaluation("final","total")
-            sys.exit()
-                
-        if i != len(compounds):
-            util.print_separator("-")
+            if i != len(compounds):
+                util.print_separator("-")
      
         
 util.print_separator("=")
