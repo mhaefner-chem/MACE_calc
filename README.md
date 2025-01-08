@@ -21,14 +21,14 @@ The most basic options are:
 -  -c [ --compound ] <ARG>      Input structure <ARG> formatted as CIF, VASP, or (EXT)XYZ.
 -  -l [ --list ] <ARG>          <ARG> is a list of valid input structures.
 -  -m [ --model ] <ARG>         <ARG> specifies the MACE model used for the calculation. Default = macemp0.
--  -p [ --proc ] <ARG>          <ARG> specifies the mode that will be used.
+-  -p [ --proc ] <ARG>          <ARG> specifies the mode that will be used.  
   Modes:
-    sp: single point
-    opt: optimization
-    phon: phonon calculation
-    md: MD simulation
-    bulk: calculation of bulk modulus
-    neb: NEB calculation
+    - sp: single point  
+    - opt: optimization  
+    - phon: phonon calculation  
+    - md: MD simulation  
+    - bulk: calculation of bulk modulus  
+    - neb: NEB calculation  
 
 -  -s [ --settings ] <ARG>      <ARG> contains more detailed settings for the calculation.
 -  -d [ --d3bj ]                Activates Grimme D3(BJ) dispersion correction.
