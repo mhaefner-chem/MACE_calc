@@ -57,6 +57,12 @@ The source code for the program is obtained with the command
 ```console
 $ git clone https://github.com/mhaefner-chem/MACE_calc
 ```
+In order for the program to be able to find its modules, the path to the program folder needs to be specified as global variable so
+
+```console
+$ echo $PYTHON_MODULES /PATH/TO/MACE_calc
+```
+yields the correct path.
 
 Running the program with python requires at least the python packages [`ase`](https://wiki.fysik.dtu.dk/ase/install.html), [`mace-torch`](https://github.com/ACEsuit/mace), and all their dependencies.
 
