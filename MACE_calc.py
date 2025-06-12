@@ -87,7 +87,7 @@ if __name__ == "__main__":
     util.print_separator("=")    
     # create output file
     settings.file_results = "MACE_"+procedure+".dat"
-    if settings.write_energies == True and settings.verbosity > -1:
+    if settings.write_energies == True and settings.verbosity > -1 and proc in ["sp","opt"]:
         util.write_results(settings.file_results, "{:16} {:8} {:5} {}\n".format("ID","E","Multi",datetime.datetime.now()), "a") 
    
     pbc_numerical = []
@@ -143,12 +143,13 @@ if __name__ == "__main__":
             else:
                 print("Using structure from previous optimiziation {}_OPT.xyz".format(compound.name))
             proc.perform_bulkmod(compound,settings)
-            
+        
         if procedure == "phon":
             if not os.path.isfile(compound.name+"_OPT.xyz"):
                 proc.perform_optimization(compound,settings)
             else:
                 print("Using structure from previous optimiziation {}_OPT.xyz".format(compound.name))
+            proc.perform_singlepoint(compound,settings)
             proc.perform_phonon(compound,settings)
         
         if procedure == "md":
@@ -190,8 +191,9 @@ if __name__ == "__main__":
      
         
 util.print_separator("=")
-elapsed, left, average = time_tracker.time_estimator(len(compounds))
-print("Average time per calculation: {:8.3f} s".format(average))
+if len(compounds) > 1:
+    elapsed, left, average = time_tracker.time_estimator(len(compounds))
+    print("Average time per calculation: {:8.3f} s".format(average))
 time_tracker.time_evaluation("final","total")
     
     

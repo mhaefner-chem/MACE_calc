@@ -72,7 +72,7 @@ class settings:
         self.sc = "" # explicitly set supercell size
         self.md_taut = 100
         self.md_taup = 1000
-        self.md_algo = "nptb"
+        self.md_algo = "nve"
 
         # NPT Nose-Hoover
         self.md_ttime = 25.0
@@ -149,8 +149,6 @@ class settings:
                     self.md_T_end = float(line.split()[-1])
                 elif "md_t_steps" in line.lower():
                     self.md_T_steps = int(line.split()[-1])  
-                elif "md_t" in line.lower():
-                    self.md_T = float(line.split()[-1])
                 elif "md_p" in line.lower():
                     self.md_p = float(line.split()[-1])
                 elif "md_step_size" in line.lower():
@@ -171,6 +169,9 @@ class settings:
                     self.md_taup = float(line.split()[-1])
                 elif "md_algo" in line.lower():
                     self.md_algo = line.split()[-1]
+                elif "md_t" in line.lower():
+                    self.md_T = float(line.split()[-1])
+                    
                     
                 # settings for NEB
                 elif "neb_init_file" in line.lower():
@@ -331,8 +332,9 @@ class settings:
                 print_item("MD_Min_len [Å]:",self.md_min_len)
                 print_item("MD_interval_write_E [steps]:",self.md_interval_write_e)
                 print_item("MD_interval_write_S [steps]:",self.md_interval_write_s)
-                if self.md_algo == "nptb":
+                if self.md_algo == "nptb" or self.md_algo == "nvt_bussi":
                     print_item("MD_tauT [1/fs]:",self.md_taut)
+                if self.md_algo == "nptb":
                     print_item("MD_taup [1/fs]:",self.md_taup)
                 elif self.md_algo == "npt":
                     print_item("MD_ttime [fs]:",self.md_ttime)

@@ -48,7 +48,7 @@ def get_symmetry(structure,verbosity = 0, prec=0.01):
         if verbosity > 0:
             print("Given symmetry at precision {}:".format(prec))
             sym = check_symmetry(structure, prec, verbose=False)
-            print("SG {} Hermann-Maughin {}, Hall {}".format(sym["number"],sym["international"],sym["hall"]))
+            print("SG {} Hermann-Maughin {}, Hall {}".format(sym.number,sym.international,sym.hall))
         structure_sym = structure.copy()
         structure_sym.set_constraint(FixSymmetry(structure))
     except:

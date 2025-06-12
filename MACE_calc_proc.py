@@ -197,7 +197,7 @@ def perform_phonon(compound,settings):
 
 
 from ase.build import make_supercell
-from ase.io import read
+from ase.io import read, write
 from ase import units
 import datetime
 from ase.md import MDLogger
@@ -227,15 +227,35 @@ def perform_md(compound,settings):
     print()
     
 
-
-    sc = make_supercell(compound.structure,((N[0],0,0),(0,N[1],0),(0,0,N[2])))
     
+    # check whether supercell is required or not
+    # prevents folding of atoms outside the cell into the unit cell
+    if N == [1,1,1]:
+        sc = compound.structure.copy()  
+    else:
+        sc = make_supercell(compound.structure,((N[0],0,0),(0,N[1],0),(0,0,N[2])))
+        
+    vecs = sc.get_cell()
+    new_vecs = []
+    i = 0
+    for vec in vecs:      
+        for j in range(i):
+            if vec[j] < 1E-3:
+                vec[j] = 0.0
+            elif 'npt' in settings.md_algo:
+                print("Critical error with cell vectors. Needs to be upper triangular matrix!")
+                sys.exit()
+        new_vecs.append(vec)
+        i += 1
+    sc.set_cell(new_vecs)
     
     abc_sc = sc.cell.lengths()
     print("{}x{}x{} supercell:".format(N[0],N[1],N[2]))
     print("{} atoms".format(len(sc.symbols)))
     print("a {:6.3f} Å, b {:6.3f} Å, c {:6.3f} Å".format(abc_sc[0],abc_sc[1],abc_sc[2]))
     util.print_separator("-")
+    
+    print(sc.cell)
     
     if settings.md_interval_write_s != settings.md_interval_write_e:
         print('''
@@ -287,6 +307,9 @@ Consider changing MD_interval_s (for structures) and MD_interval_e (for energies
         elif settings.md_algo == "nvt":
             from ase.md.langevin import Langevin
             dyn = Langevin(sc, settings.md_step_size*units.fs, temperature_K=temperature, friction=5e-3)
+        elif settings.md_algo == "nvt_bussi":
+            from ase.md.bussi import Bussi
+            dyn = Bussi(atoms=sc, timestep=settings.md_step_size*units.fs, temperature_K=temperature, taut=settings.md_taut * units.fs)
         
         # creates output with timings
         with open(compound.name+"_MD.out",mode="a") as f:
