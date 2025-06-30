@@ -311,6 +311,9 @@ Consider changing MD_interval_s (for structures) and MD_interval_e (for energies
             from ase.md.bussi import Bussi
             dyn = Bussi(atoms=sc, timestep=settings.md_step_size*units.fs, temperature_K=temperature, taut=settings.md_taut * units.fs)
         
+        elif settings.md_algo == "nvt_nose":
+            from ase.md.nose_hoover_chain import NoseHooverChainNVT as NHC
+            dyn = NHC(atoms=sc, timestep=settings.md_step_size*units.fs, temperature_K=temperature, tdamp=settings.md_tdamp * units.fs, tchain=settings.md_tchain, tloop=settings.md_tloop)
         # creates output with timings
         with open(compound.name+"_MD.out",mode="a") as f:
             header = "{:12} {:12} {:12} {:12} {:12} {:12} {:12} {} T: {} K\n".format("sim. time","curr. step","tot. steps","time/step","time ela.","time rem.","time tot.",datetime.datetime.now(),temperature)

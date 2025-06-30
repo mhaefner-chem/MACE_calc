@@ -73,6 +73,11 @@ class settings:
         self.md_taut = 100
         self.md_taup = 1000
         self.md_algo = "nve"
+        
+        # NVT Nose-Hoover
+        self.md_tdamp = 100
+        self.md_tchain = 3
+        self.md_tloop = 1
 
         # NPT Nose-Hoover
         self.md_ttime = 25.0
@@ -167,6 +172,12 @@ class settings:
                     self.md_taut = float(line.split()[-1])
                 elif "md_taup" in line.lower():
                     self.md_taup = float(line.split()[-1])
+                elif "md_tdamp" in line.lower():
+                    self.md_tdamp = float(line.split()[-1])
+                elif "md_tchain" in line.lower():
+                    self.md_tchain = int(line.split()[-1])
+                elif "md_tloop" in line.lower():
+                    self.md_tloop = int(line.split()[-1])
                 elif "md_algo" in line.lower():
                     self.md_algo = line.split()[-1]
                 elif "md_t" in line.lower():
@@ -334,6 +345,10 @@ class settings:
                 print_item("MD_interval_write_S [steps]:",self.md_interval_write_s)
                 if self.md_algo == "nptb" or self.md_algo == "nvt_bussi":
                     print_item("MD_tauT [1/fs]:",self.md_taut)
+                if self.md_algo == 'nvt_nose':
+                    print_item("MD_tdamp [fs]:",self.md_tdamp)
+                    print_item("MD_tchain:",self.md_tchain)
+                    print_item("MD_tloop:",self.md_tloop)
                 if self.md_algo == "nptb":
                     print_item("MD_taup [1/fs]:",self.md_taup)
                 elif self.md_algo == "npt":
